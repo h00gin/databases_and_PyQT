@@ -7,12 +7,11 @@
 import os
 import ipaddress
 
-QUANTITY_IP_ADDRESS = 5
-
-ip_list = [ipaddress.ip_address(f'192.168.1.{i}') for i in range(QUANTITY_IP_ADDRESS)]
+ip_list_address = ['80.0.1.1', '80.0.1.4', '80.0.1.6', '80.0.1.10', '80.0.1.13']
 
 
 def host_ping(list_ip):
+    list_ip = [ipaddress.ip_address(i) for i in list_ip]
     for el in list_ip:
         ping = os.system('ping -c 1 ' + str(el))
         if ping == 0:
@@ -21,6 +20,6 @@ def host_ping(list_ip):
             print(f'Узел {el} недоступен')
 
 
-host_ping(ip_list)
+host_ping(ip_list_address)
 
 
