@@ -7,13 +7,13 @@
 import os
 import ipaddress
 
-ip_list_address = ['80.0.1.1', '80.0.1.4', '80.0.1.6', '80.0.1.10', '80.0.1.13']
+ip_list_address = ['8.8.8.8', '80.0.1.4', '80.0.1.6', '80.0.1.10', '80.0.1.13']
 
 
 def host_ping(list_ip):
     list_ip = [ipaddress.ip_address(i) for i in list_ip]
     for el in list_ip:
-        ping = os.system('ping -c 1 ' + str(el))
+        ping = os.system('ping -n 1 ' + str(el))
         if ping == 0:
             print(f'Узел {el} доступен')
         else:
