@@ -12,7 +12,6 @@ RANGE_IP_ADDRESS = 28
 
 def host_range_ping(ip_range):
     ip_list = ipaddress.ip_network(f'80.0.1.0/{ip_range}')
-    # ba_ip_list = ip_list.broadcast_address
     print(ip_list)
     for el in ip_list:
         ping = os.system('ping -n 1 ' + str(el))
