@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 """Program-server"""
-
+import dis
 import socket
 import sys
 import argparse
@@ -31,11 +31,32 @@ class ServerPort:
         self.name = name
 
 
-class Server:
+class ServerVerifier(type):
+    def __init__(self, clsname, bases, clsdict):
+        list_ip = []
+        for el in dis.Bytecode(clsname):
+            el = list(el)
+            try:
+                for i in el:
+                    if i == 'connect':
+                        raise Exception
+                    elif i == 'AF_INET':
+                        list_ip.append(i)
+            except Exception as e:
+                print('Таких конструкций быть не должно!')
+        try:
+            if len(list_ip) > 1:
+                raise Exception
+        except Exception as e:
+            print('Не использован протокол TCP для сокета!')
+
+        type.__init__(self, clsname, bases, clsdict)
+
+
+class Server(metaclass=ServerVerifier):
     listen_port = ServerPort()
 
     def __init__(self, listen_port):
-        # self.listen_address = listen_address
         self.listen_port = listen_port
 
     @log

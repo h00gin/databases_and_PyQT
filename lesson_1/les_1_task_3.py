@@ -27,4 +27,3 @@ def host_range_ping_tab(ip_range):
 
 
 host_range_ping_tab(QUANTITY_IP_ADDRESS)
-

@@ -9,7 +9,7 @@ import argparse
 import logging
 import threading
 import dis
-import collections
+
 
 from errors import IncorrectDataRecivedError, ReqFieldMissingError, ServerError
 from decos import log
@@ -22,21 +22,32 @@ CLIENT_LOGGER = logging.getLogger('client')
 
 class ClientVerifier(type):
 
-    def __prepare__(cls, name):
-        attrib_client = collections.OrderedDict()
-        for key, value in attrib_client.items():
-            try:
-                type(value) is not socket.socket
-            except Exception:
-                print('Неверный тип данных!')
-        return attrib_client
+    def __init__(self, clsname, bases, clsdict):
+        try:
+            for key, value in clsdict.items():
+                if type(value) is socket.socket:
+                    raise Exception
+        except Exception as e:
+            print('Неверный тип данных!')
 
-    # def __call__(self, *args, **kwargs):
-    #     obj = type.__call__(self, *args)
-    #     for name in kwargs:
-    #         if type(name) is not socket.socket:
-    #             setattr(obj, name, kwargs[name])
-    #     return obj
+        list_ip = []
+        for el in dis.Bytecode(clsname):
+            el = list(el)
+            try:
+                for i in el:
+                    if i == 'listen' or i == 'accept':
+                        raise Exception
+                    elif i == 'AF_INET':
+                        list_ip.append(i)
+            except Exception as e:
+                print('Таких конструкций быть не должно!')
+        try:
+            if len(list_ip) > 1:
+                raise Exception
+        except Exception as e:
+            print('Не использован протокол TCP для сокета!')
+
+        type.__init__(self, clsname, bases, clsdict)
 
 
 class Client(metaclass=ClientVerifier):
@@ -159,7 +170,7 @@ class Client(metaclass=ClientVerifier):
 
 
 def main():
-    client_1 = Client(DEFAULT_IP_ADDRESS, socket.socket(socket.AF_INET, socket.SOCK_STREAM), '1')
+    client_1 = Client(DEFAULT_IP_ADDRESS, DEFAULT_PORT, '1')
     # client_1 = Client()
     server_address, server_port, client_name = client_1.create_arg_parser()
 
