@@ -3392,3 +3392,5 @@ ddd
 2021-11-28 23:01:34,083 INFO client.py Установлено соединение с сервером. Ответ сервера: Ответ от сервера получен 200: OK
 2021-11-28 23:01:34,083 DEBUG client.py Запущены процессы. 
 2021-11-28 23:01:34,083 DEBUG client.py Была вызвана функция print_help с параметрами (<__main__.Client object at 0x031C16E8>,), {}. Вызов из модуля __main__. Вызов из функции self._bootstrap_inner().Вызов из функции user_interactive
+2021-11-28 23:16:24,564 CRITICAL client.py Потеряно соединение с сервером. 
+2021-11-28 23:16:24,564 DEBUG threading.py Была вызвана функция message_from_server с параметрами (<__main__.Client object at 0x031C16E8>, <socket.socket fd=472, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 49306), raddr=('127.0.0.1', 7777)>, '31ds'), {}. Вызов из модуля __main__. Вызов из функции self._bootstrap_inner().Вызов из функции run
