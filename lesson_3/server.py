@@ -7,48 +7,19 @@ import select
 import socket
 import sys
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+from models import ClientOnServer, ClientHistory, Base
+
+from datetime import datetime
 
 from common.utils import send_message, get_message
 from common.variables import ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, ERROR, DEFAULT_PORT, \
-    MAX_CONNECTIONS, MESSAGE, MESSAGE_TEXT, SENDER, DESTINATION, RESPONSE_200, RESPONSE_400, EXIT
+    MAX_CONNECTIONS, MESSAGE, MESSAGE_TEXT, SENDER, DESTINATION, RESPONSE_200, RESPONSE_400, EXIT, DEFAULT_IP_ADDRESS
 from decos import log
 
 SERVER_LOGGER = logging.getLogger('server')
-
-engine = create_engine('sqlite:///:memory:', echo=True)
-Base = declarative_base()
-
-
-class ClientOnServer(Base):
-
-    __tablename__ = 'client'
-    id = Column(Integer, primary_key=True)
-    login = Column(String, unique=True)
-    information = Column(String)
-
-    def __init__(self, login, information):
-        self.login = login
-        self.information = information
-
-    def __repr__(self):
-        return f'<Client({self.login}, {self.information})>'
-
-
-class ClientHistory:
-
-    __tablename__ = 'client_history'
-    entry_time = Column(DateTime)
-    ip_address = Column(String)
-
-    def __init__(self, entry_time, ip_address):
-        self.entry_time = entry_time
-        self.ip_address = ip_address
-
-    def __repr__(self):
-        return f'<Client history({self.entry_time}, {self.ip_address})>'
 
 
 class ServerPort:
@@ -88,8 +59,8 @@ class ServerVerifier(type):
 
 
 class Server(metaclass=ServerVerifier):
+
     listen_port = ServerPort()
-    Session = sessionmaker(bind=engine)
 
     def __init__(self, listen_port):
         self.listen_port = listen_port
@@ -155,6 +126,10 @@ def main():
 
     listen_address, listen_port = server_1.create_arg_parser()
 
+    engine = create_engine('sqlite:///clients.db', echo=True)
+    metadata = Base.metadata
+    metadata.create_all(engine)
+
     SERVER_LOGGER.info(f'Запушен сервер, порт для подключений: {listen_port}'
                        f'Адрес, с которого принимаются подключения: {listen_address}'
                        f'Если не указан адрес, принимаются соединения с любых адресов.')
@@ -172,6 +147,7 @@ def main():
     while True:
         try:
             client, client_address = transport.accept()
+
         except OSError:
             pass
         else:
@@ -193,6 +169,19 @@ def main():
                 try:
                     server_1.client_message(get_message(client_with_message),
                                             messages, client_with_message, clients, names)
+                    with Session(engine) as session:
+                        session.begin()
+                        try:
+                            if client_with_message.getpeername() != ClientOnServer.login:
+                                session.add(ClientOnServer(client_with_message.getpeername(), ' '))
+                                session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+                            else:
+                                session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+                        except:
+                            session.rollback()
+                            raise
+                        else:
+                            session.commit()
                 except Exception:
                     SERVER_LOGGER.info(f'Клиент {client_with_message.getpeername()} отключился от сервера.')
                     clients.remove(client_with_message)
@@ -209,11 +198,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # Session = sessionmaker(bind=engine)
-    #
-    # # Класс Session будет создавать Session-объекты, которые привязаны к базе данных
-    # session = Session()
-    # print('Session:', session)
+    
 
 
 
