@@ -14,7 +14,7 @@ import dis
 from errors import IncorrectDataRecivedError, ReqFieldMissingError, ServerError
 from decos import log
 from common.variables import USER, ACTION, PRESENCE, TIME, ACCOUNT_NAME, RESPONSE, ERROR, DEFAULT_IP_ADDRESS, \
-    DEFAULT_PORT, MESSAGE, SENDER, MESSAGE_TEXT, DESTINATION, EXIT
+    DEFAULT_PORT, MESSAGE, SENDER, MESSAGE_TEXT, DESTINATION, EXIT, GET, ADD, DEL, USER_ID
 from utils import send_message, get_message
 
 CLIENT_LOGGER = logging.getLogger('client')
@@ -102,6 +102,25 @@ class Client(metaclass=ClientVerifier):
             sys.exit(1)
 
     @log
+    def create_list_contacts(self, account_name):
+
+        return {
+            ACTION: GET,
+            TIME: time.time(),
+            ACCOUNT_NAME: account_name
+        }
+
+    @log
+    def add_del_contacts(self, account_name, nickname):
+
+        return {
+            ACTION: ADD or DEL,
+            USER_ID: nickname,
+            TIME: time.time(),
+            ACCOUNT_NAME: account_name
+        }
+
+    @log
     def user_interactive(self, sock, username):
         self.print_help()
         print(f'Имя пользователя: {username}')
@@ -111,6 +130,14 @@ class Client(metaclass=ClientVerifier):
                 self.create_message(sock, username)
             elif command == 'help':
                 self.print_help()
+            elif command == 'get':
+                send_message(sock, self.create_list_contacts(username))
+            elif command == 'add':
+                nickname = str(input('Введите имя контакта: '))
+                send_message(sock, self.add_del_contacts(username, nickname))
+            elif command == 'del':
+                nickname = str(input('Введите имя контакта: '))
+                send_message(sock, self.add_del_contacts(username, nickname))
             elif command == 'exit':
                 send_message(sock, self.create_exit_message(username))
                 print('Завершение соединения. ')
@@ -136,6 +163,9 @@ class Client(metaclass=ClientVerifier):
     def print_help(self):
         print('Поддерживаемые команды: ')
         print('message - отправить сообщение. ')
+        print('get - получить список контактов. ')
+        print('add - добавить контакт в  список контактов. ')
+        print('del - удалить контакт из списка контактов. ')
         print('help - помощь. ')
         print('exit - выход. ')
 

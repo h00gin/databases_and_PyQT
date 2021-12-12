@@ -16,6 +16,7 @@ USER = 'user'
 ACCOUNT_NAME = 'account_name'
 SENDER = 'sender'
 DESTINATION = 'to'
+USER_ID = 'user_id'
 
 PRESENCE = 'presence'
 RESPONSE = 'response'
@@ -23,7 +24,12 @@ ERROR = 'error'
 MESSAGE = 'message'
 MESSAGE_TEXT = 'mess_text'
 EXIT = 'exit'
+GET = 'get'
+ADD = 'add'
+DEL = 'del'
+ALERT = 'alert'
 
 RESPONSE_200 = {RESPONSE: 200}
+RESPONSE_202 = {RESPONSE: 202, ALERT: None}
 RESPONSE_400 = {RESPONSE: 400, ERROR: None}
 

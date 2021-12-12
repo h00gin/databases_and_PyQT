@@ -10,13 +10,14 @@ import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from models import ClientOnServer, ClientHistory, Base
+from models import ClientOnServer, ClientHistory, Base, Contacts
 
 from datetime import datetime
 
 from common.utils import send_message, get_message
 from common.variables import ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, ERROR, DEFAULT_PORT, \
-    MAX_CONNECTIONS, MESSAGE, MESSAGE_TEXT, SENDER, DESTINATION, RESPONSE_200, RESPONSE_400, EXIT, DEFAULT_IP_ADDRESS
+    MAX_CONNECTIONS, MESSAGE, MESSAGE_TEXT, SENDER, DESTINATION, RESPONSE_200, RESPONSE_400, EXIT, DEFAULT_IP_ADDRESS, \
+    GET, RESPONSE_202, ALERT, ADD, DEL, RESPONSE, USER_ID
 from decos import log
 
 SERVER_LOGGER = logging.getLogger('server')
@@ -62,16 +63,36 @@ class Server(metaclass=ServerVerifier):
 
     listen_port = ServerPort()
 
+    # engine = create_engine('sqlite:///clients.db', echo=True)
+    engine = create_engine('sqlite:///:memory:', echo=True)
+    metadata = Base.metadata
+    metadata.create_all(engine)
+
     def __init__(self, listen_port):
         self.listen_port = listen_port
 
     @log
     def client_message(self, message, message_list, client, clients, names):
         SERVER_LOGGER.debug(f'Разбор сообщения от клиента: {message}')
+        list_contacts = []
         if ACTION in message and message[ACTION] == PRESENCE and TIME in message and USER in message:
             if message[USER][ACCOUNT_NAME] not in names.keys():
                 names[message[USER][ACCOUNT_NAME]] = client
                 send_message(client, RESPONSE_200)
+                with Session(self.engine) as session:
+                    session.begin()
+                    try:
+                        if message[USER][ACCOUNT_NAME] not in \
+                                session.query(ClientOnServer).order_by(ClientOnServer.login).all():
+                            session.add(ClientOnServer(message[USER][ACCOUNT_NAME], ' '))
+                            session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+                        else:
+                            session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+                    except:
+                        session.rollback()
+                        raise
+                    else:
+                        session.commit()
             else:
                 response = RESPONSE_400
                 response[ERROR] = 'Имя пользователя уже занято. '
@@ -87,6 +108,47 @@ class Server(metaclass=ServerVerifier):
             clients.remove(names[message[ACCOUNT_NAME]])
             names[message[ACCOUNT_NAME]].close()
             del names[message[ACCOUNT_NAME]]
+            return
+        elif ACTION in message and message[ACTION] == ADD and ACCOUNT_NAME in message and USER_ID in message:
+            with Session(self.engine) as session:
+                session.begin()
+                try:
+                    if message[USER_ID] not in \
+                            session.query(Contacts).order_by(Contacts.client_id).all():
+                        list_contacts.append(message[USER_ID])
+                        session.add(Contacts(message[USER_ID]))
+                    # else:
+                    #     session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+                except:
+                    session.rollback()
+                    raise
+                else:
+                    session.commit()
+            response = {RESPONSE: f'в список контактов довален контакт: {message[USER_ID]}'}
+            send_message(client, response)
+            return
+        elif ACTION in message and message[ACTION] == DEL and ACCOUNT_NAME in message and USER_ID in message:
+            response = {RESPONSE: f'из списка контактов удален контакт: {message[USER_ID]}'}
+            send_message(client, response)
+            return
+        elif ACTION in message and message[ACTION] == GET and ACCOUNT_NAME in message:
+            response = RESPONSE_202
+
+            # with Session(self.engine) as session:
+            #     session.begin()
+            #     try:
+            #         if client != get_by_login():
+            #             session.add(ClientOnServer(client, ' '))
+            #             session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+            #         else:
+            #             session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+            #     except:
+            #         session.rollback()
+            #         raise
+            #     else:
+            #         session.commit()
+            response[ALERT] = list_contacts
+            send_message(client, response)
             return
         else:
             response = RESPONSE_400
@@ -120,15 +182,24 @@ class Server(metaclass=ServerVerifier):
             sys.exit(1)
         return listen_address, listen_port
 
+    @log
+    def session(self, *args):
+        with Session(self.engine) as session:
+            session.begin()
+            try:
+                for elem in args:
+                    session.add(elem)
+            except:
+                session.rollback()
+                raise
+            else:
+                session.commit()
+
 
 def main():
     server_1 = Server(DEFAULT_PORT)
 
     listen_address, listen_port = server_1.create_arg_parser()
-
-    engine = create_engine('sqlite:///clients.db', echo=True)
-    metadata = Base.metadata
-    metadata.create_all(engine)
 
     SERVER_LOGGER.info(f'Запушен сервер, порт для подключений: {listen_port}'
                        f'Адрес, с которого принимаются подключения: {listen_address}'
@@ -169,19 +240,6 @@ def main():
                 try:
                     server_1.client_message(get_message(client_with_message),
                                             messages, client_with_message, clients, names)
-                    with Session(engine) as session:
-                        session.begin()
-                        try:
-                            if client_with_message.getpeername() != ClientOnServer.login:
-                                session.add(ClientOnServer(client_with_message.getpeername(), ' '))
-                                session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
-                            else:
-                                session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
-                        except:
-                            session.rollback()
-                            raise
-                        else:
-                            session.commit()
                 except Exception:
                     SERVER_LOGGER.info(f'Клиент {client_with_message.getpeername()} отключился от сервера.')
                     clients.remove(client_with_message)
