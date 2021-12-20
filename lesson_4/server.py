@@ -65,6 +65,7 @@ class Server(metaclass=ServerVerifier):
 
     # engine = create_engine('sqlite:///clients.db', echo=True)
     engine = create_engine('sqlite:///:memory:', echo=True)
+    # engine = create_engine('postgresql://postgres:postgres@localhost:5432/postgres')
     metadata = Base.metadata
     metadata.create_all(engine)
 
@@ -81,18 +82,13 @@ class Server(metaclass=ServerVerifier):
                 send_message(client, RESPONSE_200)
                 with Session(self.engine) as session:
                     session.begin()
-                    try:
-                        if message[USER][ACCOUNT_NAME] not in \
-                                session.query(ClientOnServer).order_by(ClientOnServer.login).all():
-                            session.add(ClientOnServer(message[USER][ACCOUNT_NAME], ' '))
-                            session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
-                        else:
-                            session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
-                    except:
-                        session.rollback()
-                        raise
+                    if message[USER][ACCOUNT_NAME] not in \
+                            session.query(ClientOnServer).order_by(ClientOnServer.login).all():
+                        session.add(ClientOnServer(message[USER][ACCOUNT_NAME], ' '))
+                        session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
                     else:
-                        session.commit()
+                        session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+                    session.commit()
             else:
                 response = RESPONSE_400
                 response[ERROR] = 'Имя пользователя уже занято. '
@@ -113,19 +109,24 @@ class Server(metaclass=ServerVerifier):
             with Session(self.engine) as session:
                 session.begin()
                 try:
-                    if message[USER_ID] not in \
-                            session.query(Contacts).order_by(Contacts.client_id).all():
-                        list_contacts.append(message[USER_ID])
+                    if message[USER_ID] not in session.query(ClientOnServer).order_by(ClientOnServer.login).all():
+                        # if message[USER_ID] not in \
+                        #         session.query(Contacts).order_by(Contacts.client_id).all():
                         session.add(Contacts(message[USER_ID]))
-                    # else:
-                    #     session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
+                        response = {RESPONSE: f'в список контактов довален контакт: {message[USER_ID]}'}
+                        send_message(client, response)
+                    else:
+                        response = RESPONSE_400
+                        response[ERROR] = 'Контакт уже есть в списке контактов. '
+                        send_message(client, response)
+                        # response = RESPONSE_400
+                        # response[ERROR] = 'Контакт с данным именем отсуствует в базе данных. '
+                        # send_message(client, response)
                 except:
                     session.rollback()
                     raise
                 else:
                     session.commit()
-            response = {RESPONSE: f'в список контактов довален контакт: {message[USER_ID]}'}
-            send_message(client, response)
             return
         elif ACTION in message and message[ACTION] == DEL and ACCOUNT_NAME in message and USER_ID in message:
             response = {RESPONSE: f'из списка контактов удален контакт: {message[USER_ID]}'}
@@ -133,20 +134,13 @@ class Server(metaclass=ServerVerifier):
             return
         elif ACTION in message and message[ACTION] == GET and ACCOUNT_NAME in message:
             response = RESPONSE_202
+            with Session(self.engine) as session:
+                session.begin()
+                if message[USER][ACCOUNT_NAME] in session.query(ClientOnServer).order_by(ClientOnServer.login).all():
+                    s = session.query(Contacts).order_by(Contacts.client_id).all()
+                    list_contacts.append(s)
+                session.commit()
 
-            # with Session(self.engine) as session:
-            #     session.begin()
-            #     try:
-            #         if client != get_by_login():
-            #             session.add(ClientOnServer(client, ' '))
-            #             session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
-            #         else:
-            #             session.add(ClientHistory(datetime.now(), DEFAULT_IP_ADDRESS))
-            #     except:
-            #         session.rollback()
-            #         raise
-            #     else:
-            #         session.commit()
             response[ALERT] = list_contacts
             send_message(client, response)
             return
@@ -155,6 +149,11 @@ class Server(metaclass=ServerVerifier):
             response[ERROR] = 'Запрос некорректен. '
             send_message(client, response)
             return
+
+    @log
+    def get_multi(self, db, model):
+        objects = db.query(model)
+        return objects.all()
 
     @log
     def process_message(self, message, names, listen_socks):
@@ -183,17 +182,13 @@ class Server(metaclass=ServerVerifier):
         return listen_address, listen_port
 
     @log
-    def session(self, *args):
+    def session(self, model, obj_in):
+        db_obj = model(**obj_in)
         with Session(self.engine) as session:
             session.begin()
-            try:
-                for elem in args:
-                    session.add(elem)
-            except:
-                session.rollback()
-                raise
-            else:
-                session.commit()
+            session.add(db_obj)
+            session.commit()
+            return db_obj
 
 
 def main():

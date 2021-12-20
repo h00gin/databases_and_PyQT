@@ -49,5 +49,3 @@ class Contacts(Base):
     client_id = Column(Integer, ForeignKey('client.id'))
 
 
-
-

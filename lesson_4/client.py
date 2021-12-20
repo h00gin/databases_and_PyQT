@@ -10,11 +10,13 @@ import logging
 import threading
 import dis
 
+from sqlalchemy import create_engine
 
 from errors import IncorrectDataRecivedError, ReqFieldMissingError, ServerError
 from decos import log
 from common.variables import USER, ACTION, PRESENCE, TIME, ACCOUNT_NAME, RESPONSE, ERROR, DEFAULT_IP_ADDRESS, \
     DEFAULT_PORT, MESSAGE, SENDER, MESSAGE_TEXT, DESTINATION, EXIT, GET, ADD, DEL, USER_ID
+from models import Base
 from utils import send_message, get_message
 
 CLIENT_LOGGER = logging.getLogger('client')
@@ -51,6 +53,10 @@ class ClientVerifier(type):
 
 
 class Client(metaclass=ClientVerifier):
+
+    # engine = create_engine('sqlite:///:memory:', echo=True)
+    # metadata = Base.metadata
+    # metadata.create_all(engine)
 
     def __init__(self, server_address, server_port, client_name):
         self.server_address = server_address
