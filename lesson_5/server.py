@@ -63,8 +63,8 @@ class Server(metaclass=ServerVerifier):
 
     listen_port = ServerPort()
 
-    # engine = create_engine('sqlite:///clients.db', echo=True)
-    engine = create_engine('sqlite:///:memory:', echo=True)
+    engine = create_engine('sqlite:///clients.db', echo=True)
+    # engine = create_engine('sqlite:///:memory:', echo=True)
     # engine = create_engine('postgresql://postgres:postgres@localhost:5432/postgres')
     metadata = Base.metadata
     metadata.create_all(engine)
